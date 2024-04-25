@@ -1,0 +1,258 @@
+target C
+
+import Input, Output from "vm_extra.lf"
+
+preamble 
+{=
+    typedef enum {IDLE, SEL, COIN_NEED} vending_machine_state_t;
+=}
+
+preamble {=
+    #include <string.h>
+    =}
+
+reactor Display
+{
+    input msg:string
+    timer disp_off_t(0,1 s)
+    state disp_counter: int
+
+    reaction(startup) 
+    {=
+        self->disp_counter = 0;
+    =}
+
+    reaction(disp_off_t)
+    {=
+        self->disp_counter++;
+        if(self->disp_counter == 5)
+        {
+            printf("Display Off\n");
+        }
+    =}
+
+    reaction(msg)
+    {=
+        self->disp_counter = 0;
+        printf("%s", msg->value);
+    =}
+}
+
+reactor VendingMachine(stock:int[] = {2,2,2})
+{
+    state vm_state: vending_machine_state_t
+    state selection: int
+    state buffer: char[70]
+    state coin_ret_counter: int
+    state shutdown_counter: int
+
+    input cancel:bool
+    input sel:int
+    input coin:bool
+    output beverage:int
+    output change:bool
+    output message:string
+
+    timer coin_ret_t(0,1 s)
+    timer shutdown_t(0,1 s)
+
+    reaction(startup) 
+    {=
+
+        self->vm_state = IDLE;
+        self->selection = 0;
+        self->coin_ret_counter = 0;
+        self->shutdown_counter = 0;
+
+    =}
+
+    initial mode Active
+    {
+        reaction(shutdown_t) -> Shutdown, message
+        {=
+            self->shutdown_counter++;
+            if(self->shutdown_counter==10)
+            {
+                lf_set(message, "Going into Shutdown\n");
+                lf_set_mode(Shutdown);
+            }
+        =}
+
+        reaction(coin_ret_t) -> change
+        {=
+            if(self->vm_state == SEL)
+            {
+                self->coin_ret_counter++;
+            }
+            else
+            {
+                self->coin_ret_counter = 0;
+            }
+            
+            if(self->coin_ret_counter == 10)
+            {
+                self->vm_state = IDLE;
+                lf_set(change,true);
+            }
+        =}
+
+        reaction(coin) -> change, beverage, message
+        {=
+            self->coin_ret_counter = 0;
+            self->shutdown_counter = 0;
+            switch(self->vm_state) 
+            {
+                case IDLE:
+                    self->vm_state = SEL;
+                    lf_set(message, "Coin inserted\n");
+                    break;
+                case SEL:
+                    self->vm_state = SEL;
+                    lf_set(change,true);
+                    lf_set(message, "Second coin inserted. First coin returned\n");
+                    break;
+                case COIN_NEED:
+                    self->vm_state = IDLE;
+                    lf_set(message, "Transaction successful\n");
+                    if(self->stock[self->selection]==0)
+                    {
+                        lf_set(change,true);   
+                    }
+                    else
+                    {
+                        lf_set(beverage,self->selection);
+                        self->stock[self->selection]--;
+                    }
+                    break;
+                default:
+                    break;
+
+            }
+        =}
+
+        reaction(sel) -> change, beverage, message
+        {=
+            if(sel->value <= 2)
+            {
+                self->coin_ret_counter = 0;
+                self->shutdown_counter = 0;
+                switch(self->vm_state) 
+                {
+                    case IDLE:
+                        self->vm_state = COIN_NEED;
+                        self->selection = sel->value;
+                        //sprintf(self->buffer, "Beverage %d Selected\n", self->selection);
+                        //lf_set(message, self->buffer);
+                        switch(self->selection)
+                        {
+                            case 0:
+                                lf_set(message, "Beverage 0 selected\n");
+                                break;
+                            case 1:
+                                lf_set(message, "Beverage 1 selected\n");
+                                break;
+                            case 2:
+                                lf_set(message, "Beverage 2 selected\n");
+                            default:
+                                break;
+                        }
+                        break;
+                    case SEL:
+                        self->vm_state = IDLE;
+                        lf_set(message, "Transaction successful\n");
+                        self->selection = sel->value;
+                        if(self->stock[self->selection]==0)
+                        {
+                            lf_set(change,true);   
+                        }
+                        else
+                        {
+                            lf_set(beverage,self->selection);
+                            self->stock[self->selection]--;
+                        }
+                        break;
+                    case COIN_NEED:
+                        self->vm_state = COIN_NEED;
+                        self->selection = sel->value;
+                        //sprintf(self->buffer, "Beverage changed to %d\n",self->selection);
+                        //lf_set(message, self->buffer);
+                        switch(self->selection)
+                        {
+                            case 0:
+                                lf_set(message, "Beverage 0 selected\n");
+                                break;
+                            case 1:
+                                lf_set(message, "Beverage 1 selected\n");
+                                break;
+                            case 2:
+                                lf_set(message, "Beverage 2 selected\n");
+                            default:
+                                break;
+                        }
+                        break;
+
+                        default:
+                        break;
+
+                }
+            }
+        =}
+
+        reaction(cancel) -> change, beverage, message
+        {=
+            self->coin_ret_counter = 0;
+            self->shutdown_counter = 0;
+            switch(self->vm_state) 
+            {
+                case IDLE:
+                    self->vm_state = IDLE;
+                    break;
+                case SEL:
+                    self->vm_state = IDLE;
+                    lf_set(message, "Transaction cancelled. Coin returned\n");
+                    lf_set(change,true);
+                    break;
+                case COIN_NEED:
+                    self->vm_state = IDLE;
+                    lf_set(message, "Transaction cancelled\n");
+                    break;
+                default:
+                    break;
+
+            }
+        =}
+    }
+    mode Shutdown
+    {
+        reaction(coin) -> change
+        {=
+            lf_set(change, true);
+        =}
+
+        reaction(sel) -> Active, message
+        {=
+            lf_set(message, "Going into Active\n");
+            lf_set_mode(Active);
+            self->vm_state = IDLE;
+        =}
+    }
+
+}
+
+main reactor 
+{
+    in = new Input()
+    out = new Output()
+    vm = new VendingMachine(stock = {4,3,2})
+    disp = new Display()
+
+    in.cancel -> vm.cancel
+    in.coin -> vm.coin
+    in.sel -> vm.sel
+    vm.change -> out.change
+    vm.beverage -> out.beverage
+    vm.message -> disp.msg
+}
+
+
+

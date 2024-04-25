@@ -1,0 +1,130 @@
+target C
+
+
+import Input, Output from "vm_extra.lf"
+
+preamble 
+{=
+    typedef enum {IDLE, SEL, COIN_NEED} vending_machine_state_t;
+=}
+
+reactor VendingMachine(stock:int[] = {2,2,2})
+{
+    state vm_state: vending_machine_state_t
+    state selection: int
+
+    input cancel:bool
+    input sel:int
+    input coin:bool
+    output beverage:int
+    output change:bool
+
+    reaction(startup) 
+    {=
+        self->vm_state = IDLE;
+        self->selection = 0;
+    =}
+
+    reaction(coin) -> change, beverage
+    {=
+        switch(self->vm_state) 
+        {
+            case IDLE:
+                self->vm_state = SEL;
+                lf_print("Coin Inserted\n");
+                break;
+            case SEL:
+                self->vm_state = SEL;
+                lf_set(change,true);
+                lf_print("Second Coin inserted\n");
+                break;
+            case COIN_NEED:
+                self->vm_state = IDLE;
+                if(self->stock[self->selection]==0)
+                {
+                    lf_set(change,true);   
+                }
+                else
+                {
+                    lf_set(beverage,self->selection);
+                    self->stock[self->selection]--;
+                }
+                break;
+            default:
+                break;
+
+        }
+    =}
+
+    reaction(sel) -> change, beverage
+    {=
+        switch(self->vm_state) 
+        {
+            case IDLE:
+                self->vm_state = COIN_NEED;
+                self->selection = sel->value;
+                lf_print("Beverage %d Selected\n",self->selection);
+                break;
+            case SEL:
+                self->vm_state = IDLE;
+                self->selection = sel->value;
+                if(self->stock[self->selection]==0)
+                {
+                    lf_set(change,true);   
+                }
+                else
+                {
+                    lf_set(beverage,self->selection);
+                    self->stock[self->selection]--;
+                }
+                break;
+            case COIN_NEED:
+                self->vm_state = COIN_NEED;
+                self->selection = sel->value;
+                lf_print("Beverage Changed to %d\n",self->selection);
+                break;
+            default:
+                break;
+
+        }
+    =}
+
+    reaction(cancel) -> change, beverage
+    {=
+        switch(self->vm_state) 
+        {
+            case IDLE:
+                self->vm_state = IDLE;
+                break;
+            case SEL:
+                self->vm_state = IDLE;
+                lf_set(change,true);
+                break;
+            case COIN_NEED:
+                self->vm_state = IDLE;
+                break;
+            default:
+                break;
+
+        }
+    =}
+
+
+}
+
+main reactor 
+{
+    in = new Input()
+    //in = new TestIn()
+    out = new Output()
+    vm = new VendingMachine(stock = {4,3,2})
+
+    in.cancel -> vm.cancel
+    in.coin -> vm.coin
+    in.sel -> vm.sel
+    vm.change -> out.change
+    vm.beverage -> out.beverage
+}
+
+
+
