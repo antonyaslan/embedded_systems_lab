@@ -1,0 +1,89 @@
+target C;
+
+preamble 
+{=
+    typedef enum { Bread=0, Cheese=1, Ham=2 } Ingredient;
+=}
+
+preamble 
+{=
+    #include <stdio.h> 
+    #include <stdlib.h> 
+    #include <time.h> 
+=}
+
+reactor Supplier
+{
+    state ingredients: int
+
+    input[3] trigger:bool
+    output ham:bool
+    output cheese:bool
+    output bread:bool
+
+    reaction(trigger) -> ham, cheese, bread
+    {=
+        self->ingredients = rand() % 3;
+        switch(self->ingredients) 
+        {
+            case 0: //Dont output bread
+                lf_set(ham, true);
+                lf_set(cheese, true);
+                break;
+            case 1: //Dont output cheese
+                lf_set(ham, true);
+                lf_set(bread, true);
+                break;
+            case 2: //Dont output ham
+                lf_set(cheese, true);
+                lf_set(bread, true);
+                break;
+            default:
+                break;
+
+        }
+    =}
+}
+
+reactor Student(supply:int = 0)
+{
+    //state ingredient: int
+
+    input ham:bool
+    input cheese:bool
+    input bread:bool
+    output done:bool
+
+    //reaction(startup)
+    //{=
+    //    self->ingredient = self->supply;
+    //=}
+
+    reaction(ham) -> done
+    {=
+        
+    =}
+
+    reaction(cheese) -> done
+    {=
+
+    =}
+
+    reaction(bread) -> done
+    {=
+
+    =}
+}
+
+
+
+main reactor {
+    a = new Supplier();
+    s1 = new Student(supply = 0);
+    s2 = new Student(supply = 1);
+    s3 = new Student(supply = 2);
+    (a.bread)+ -> s1.bread, s2.bread, s3.bread;
+    (a.cheese)+ -> s1.cheese, s2.cheese, s3.cheese;
+    (a.ham)+ -> s1.ham, s2.ham, s3.ham;
+    s1.done,s2.done,s3.done -> a.trigger;
+}

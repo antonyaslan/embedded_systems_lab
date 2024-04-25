@@ -253,6 +253,3 @@ main reactor
     vm.beverage -> out.beverage
     vm.message -> disp.msg
 }
-
-
-

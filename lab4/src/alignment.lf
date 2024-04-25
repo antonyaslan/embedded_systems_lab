@@ -1,0 +1,33 @@
+target C
+
+reactor Align
+{
+    state x: int = 0
+
+    timer incr_x_t(0,20 ms)
+
+    timer decr10_x_t(0, 200 ms)
+
+    timer print_x_t(0, 400 ms)
+
+    reaction(incr_x_t)
+    {=
+        self->x++;
+    =}
+
+    reaction(decr10_x_t)
+    {=
+        self->x = self->x -10;
+    =}
+
+    reaction(print_x_t)
+    {=
+        printf("%d\n",self->x);
+    =}
+}
+
+main reactor
+{
+    align = new Align()
+    
+}
