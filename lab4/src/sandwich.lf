@@ -21,20 +21,49 @@ reactor Supplier
     output cheese:bool
     output bread:bool
 
+    reaction(startup) -> ham, cheese, bread
+    {=
+        self->ingredients = rand() % 3;
+        switch(self->ingredients) 
+        {
+            case 0: //Dont output bread
+                printf("Supplier:Ham and cheese provided:\n");
+                lf_set(ham, true);
+                lf_set(cheese, true);
+                break;
+            case 1: //Dont output cheese
+                printf("Supplier:Ham and bread provided:\n");
+                lf_set(ham, true);
+                lf_set(bread, true);
+                break;
+            case 2: //Dont output ham
+                printf("Supplier:Bread and cheese provided:\n");
+                lf_set(cheese, true);
+                lf_set(bread, true);
+                break;
+            default:
+                break;
+
+        }
+    =}
+
     reaction(trigger) -> ham, cheese, bread
     {=
         self->ingredients = rand() % 3;
         switch(self->ingredients) 
         {
             case 0: //Dont output bread
+                printf("Supplier:Ham and cheese provided:\n");
                 lf_set(ham, true);
                 lf_set(cheese, true);
                 break;
             case 1: //Dont output cheese
+                printf("Supplier:Ham and bread provided:\n");
                 lf_set(ham, true);
                 lf_set(bread, true);
                 break;
             case 2: //Dont output ham
+                printf("Supplier:Bread and cheese provided:\n");
                 lf_set(cheese, true);
                 lf_set(bread, true);
                 break;
@@ -59,19 +88,37 @@ reactor Student(supply:int = 0)
     //    self->ingredient = self->supply;
     //=}
 
-    reaction(ham) -> done
+    reaction(ham, cheese, bread) -> done
     {=
-        
-    =}
+        switch(self->supply)
+        {
+            case 0:
+                if(ham->is_present && ham->value == true && cheese->is_present && cheese->value == true)
+                {
+                    sleep(5);
+                    printf("Student 1 made a sandwich\n");
+                    lf_set(done, true);
+                }
+                break;
 
-    reaction(cheese) -> done
-    {=
+            case 1:
+                if(ham->is_present && ham->value == true && bread->is_present && bread->value == true)
+                {
+                    sleep(5);
+                    printf("Student 2 made a sandwich\n");
+                    lf_set(done, true);
+                }
+                break;
 
-    =}
-
-    reaction(bread) -> done
-    {=
-
+            case 2:
+                if(cheese->is_present && cheese->value == true && bread->is_present && bread->value == true)
+                {
+                    sleep(5);
+                    printf("Student 3 made a sandwich\n");
+                    lf_set(done, true);
+                }
+                break;
+        }
     =}
 }
 
@@ -85,5 +132,5 @@ main reactor {
     (a.bread)+ -> s1.bread, s2.bread, s3.bread;
     (a.cheese)+ -> s1.cheese, s2.cheese, s3.cheese;
     (a.ham)+ -> s1.ham, s2.ham, s3.ham;
-    s1.done,s2.done,s3.done -> a.trigger;
+    s1.done,s2.done,s3.done -> a.trigger after 0;
 }

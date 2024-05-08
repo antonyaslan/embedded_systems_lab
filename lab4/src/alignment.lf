@@ -10,6 +10,11 @@ reactor Align
 
     timer print_x_t(0, 400 ms)
 
+    reaction(print_x_t)
+    {=
+        printf("%d\n",self->x);
+    =}
+
     reaction(incr_x_t)
     {=
         self->x++;
@@ -20,10 +25,6 @@ reactor Align
         self->x = self->x -10;
     =}
 
-    reaction(print_x_t)
-    {=
-        printf("%d\n",self->x);
-    =}
 }
 
 main reactor
